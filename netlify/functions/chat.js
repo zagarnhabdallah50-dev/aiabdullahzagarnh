@@ -17,6 +17,9 @@ export default async function handler(req, res) {
   }
 
   try {
+    // استخراج ��لرسائل من الطلب
+    const { messages } = JSON.parse(req.body);
+    
     // استدعاء API الخاص بـ Groq
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -24,7 +27,12 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
       },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify({
+        model: 'llama3-70b-8192',
+        messages: messages,
+        max_tokens: 1000,
+        temperature: 0.7
+      })
     });
 
     // إذا كان الرد خطأ
@@ -38,7 +46,10 @@ export default async function handler(req, res) {
     const data = await response.json();
     
     // إرسال الرد
-    res.status(200).json(data);
+    res.status(200).json({
+      reply: data.choices[0]?.message?.content,
+      choices: data.choices
+    });
     
   } catch (error) {
     console.error('Server Error:', error);
