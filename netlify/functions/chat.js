@@ -17,7 +17,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages } = body;
+    const body = JSON.parse(req.body);
+const { messages } = body;
     
     // استدعاء API الخاص بـ Groq
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
