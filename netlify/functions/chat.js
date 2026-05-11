@@ -17,7 +17,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    const body = JSON.parse(req.body);
     const { messages } = body;
     
     // استدعاء API الخاص بـ Groq
