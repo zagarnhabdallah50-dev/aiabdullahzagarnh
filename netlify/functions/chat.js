@@ -1,59 +1,50 @@
-exports.handler = async (event) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS'
-  };
-
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
+export default async function handler(req, res) {
+  // إعدادات CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // التعامل مع طلب OPTIONS (الفحص المبدئي)
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
   }
-
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: 'Method Not Allowed' };
+  
+  // التأكد من أن الطلب هو POST
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
   }
 
   try {
-    const { messages } = JSON.parse(event.body);
-    
+    // استدعاء API الخاص بـ Groq
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
       },
-      body: JSON.stringify({
-        model: 'llama3-70b-8192',
-        messages: messages,
-        max_tokens: 1000,
-        temperature: 0.7
-      })
+      body: JSON.stringify(req.body)
     });
 
+    // إذا كان الرد خطأ
     if (!response.ok) {
       const errorData = await response.json();
+      console.error('Groq API Error:', errorData);
       throw new Error(errorData.error?.message || 'API request failed');
     }
 
+    // جلب البيانات من Groq
     const data = await response.json();
     
-    return {
-      statusCode: 200,
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        reply: data.choices[0]?.message?.content,
-        choices: data.choices
-      })
-    };
+    // إرسال الرد
+    res.status(200).json(data);
+    
   } catch (error) {
-    console.error('Error:', error);
-    return {
-      statusCode: 500,
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        error: error.message,
-        reply: '⚠️ Server error. Please check the GROQ_API_KEY environment variable.'
-      })
-    };
+    console.error('Server Error:', error);
+    res.status(500).json({ 
+      error: error.message,
+      message: 'حدث خطأ في الخادم، يرجى المحاولة مرة أخرى'
+    });
   }
-};
+}
