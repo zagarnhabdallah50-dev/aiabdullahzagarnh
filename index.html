@@ -352,7 +352,7 @@ textarea::placeholder{color:var(--text2)}
   <div class="input-area">
     <div class="input-inner">
       <div class="input-row">
-        <button class="attach-btn" title="Attach file">
+        <button class="attach-btn" title="Attach file" id="attachBtn">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/></svg>
         </button>
         <textarea id="chatInput" rows="1"
@@ -457,28 +457,52 @@ async function sendMessage(){
   addMsg(fmt(text),true);
   history.push({role:'user',content:text});
   showTyping();
+  
   try{
-const res=await fetch('/.netlify/functions/chat',{
-  method:'POST',
-  headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({
-    model:'llama3-70b-8192',
-    max_tokens:1000,
-    messages:[{role:'system',content:SYSTEM},...history]
-  })
-});
+    const res=await fetch('/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        messages:[{role:'system',content:SYSTEM},...history]
+      })
+    });
+    
+    if(!res.ok){
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+    }
+    
     const data=await res.json();
     removeTyping();
-const reply=data.choices?.[0]?.message?.content||'Sorry, something went wrong. Please try again.';  
+    const reply=data.reply || data.choices?.[0]?.message?.content || 'Sorry, something went wrong. Please try again.';
     addMsg(fmt(reply),false);
     history.push({role:'assistant',content:reply});
+    
     if(history.length>20)history=history.slice(-16);
-  }catch(e){
+    
+  } catch(e){
+    console.error('Error:', e);
     removeTyping();
-    addMsg('⚠️ Connection error. Please check your internet and try again.',false);
+    let errorMsg = '⚠️ Connection error. ';
+    if(e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+      errorMsg += 'Cannot reach the server. Make sure your backend API is deployed correctly with GROQ_API_KEY environment variable set.';
+    } else if(e.message.includes('404')) {
+      errorMsg += 'API endpoint not found (404). Check your backend deployment.';
+    } else {
+      errorMsg += e.message;
+    }
+    addMsg(errorMsg, false);
   }
   busy=false;toggleSend();
 }
+
+// File attachment handling (optional)
+document.getElementById('attachBtn').addEventListener('click', () => {
+  alert('File upload feature coming soon! For now, just paste file links or describe your file.');
+});
+
+// Auto-focus input on load
+document.getElementById('chatInput').focus();
 </script>
 </body>
 </html>
