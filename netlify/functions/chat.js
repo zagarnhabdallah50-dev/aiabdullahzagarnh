@@ -17,7 +17,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // استخراج الرسائل من الطلب
     const body = JSON.parse(req.body);
     const { messages } = body;
     
